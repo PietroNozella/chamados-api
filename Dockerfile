@@ -8,6 +8,6 @@ RUN ./mvnw -q clean package
 
 FROM eclipse-temurin:21-jre AS runtime
 WORKDIR /app
-COPY --from=build /build/target/login-java-1.0.0.jar app.jar
-EXPOSE 8080
+COPY --from=build /build/target/chamados-api-1.0.0.jar app.jar
+EXPOSE 8081
 ENTRYPOINT ["java", "-jar", "app.jar"]

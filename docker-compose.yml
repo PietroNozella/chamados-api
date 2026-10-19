@@ -1,37 +1,32 @@
+name: chamados-api
+
 services:
   mongo:
     image: mongo:7
-    container_name: login-java-mongo
     ports:
-      - "27018:27017"
+      - "127.0.0.1:27019:27017"
     volumes:
-      - login-java-mongo-data:/data/db
-    restart: unless-stopped
-
-  mailpit:
-    image: axllent/mailpit:v1.21
-    container_name: login-java-mailpit
-    ports:
-      - "1025:1025"
-      - "8025:8025"
-    restart: unless-stopped
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   app:
     build: .
-    container_name: login-java-app
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8081:8081"
     depends_on:
-      - mongo
-      - mailpit
+      mongo:
+        condition: service_healthy
     env_file:
-      - path: .env
-        required: false
+      - .env
     environment:
-      MONGODB_URI: ${MONGODB_URI:-mongodb://mongo:27017/login_java}
-      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SERVER_PORT: 8081
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongo:27017/chamados_api}
+      MONGODB_DATABASE: ${MONGODB_DATABASE:-chamados_api}
       APP_ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD:?Defina APP_ADMIN_PASSWORD no arquivo .env}
-    restart: unless-stopped
 
 volumes:
-  login-java-mongo-data:
+  mongo-data:
