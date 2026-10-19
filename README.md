@@ -1,118 +1,116 @@
-# Login Java
+# Chamados API
 
-Aplicação de autenticação reutilizável em Java 21, Spring Boot 3.4, Spring Security,
-Thymeleaf e MongoDB. A interface está em português brasileiro.
+Backend da atividade de chamados técnicos, com Java 21, Spring Boot 3.4.0,
+Spring Security e MongoDB. O funcionamento será demonstrado pelo Postman ou
+Insomnia, sem interface gráfica.
 
-## Funcionalidades
+## Estado atual
 
-- Cadastro público em `/cadastro`, sempre com perfil `USUARIO`.
-- Cadastro administrativo em `/usuarios/novo`, com seleção de `USUARIO` ou `ADMINISTRADOR`.
-- Login por nome de usuário, logout por POST e sessões persistidas no MongoDB.
-- Senhas com BCrypt e proteção CSRF nos formulários.
-- Bloqueio da conta por 15 minutos após cinco tentativas inválidas.
-- Troca de senha e recuperação por e-mail com token de uso único, válido por 60 minutos.
-- Aceite versionado dos termos e da privacidade após o login.
-- Auditoria de autenticação e ações de conta, acessível somente ao administrador.
+A estrutura inicial está na branch `chore/estrutura-inicial`. Ela mantém os
+modelos, repositórios, serviços e validações de usuários reaproveitados da base,
+com seus testes. Templates, arquivos estáticos, controllers de páginas,
+redirecionamentos de login e o envio de e-mail foram retirados.
 
-Não há confirmação de e-mail, MFA ou login social. Os documentos legais são modelos
-que precisam ser adaptados pelo responsável pela implantação.
+Os endpoints de autenticação e de chamados ainda não estão implementados.
+Todas as rotas estão bloqueadas nesta etapa. Requisições GET sem autenticação
+recebem HTTP 401; não há formulário de login. A proteção CSRF permanece ativa.
 
-## Executar com Docker
+O código de recuperação de senha e aceite legal ainda existente nos serviços e
+modelos veio da base e não possui endpoints expostos neste projeto.
 
-Pré-requisito: Docker com Compose em execução.
+## Origem
+
+Base: [PietroNozella/login-java](https://github.com/PietroNozella/login-java),
+commit [`f76d857`](https://github.com/PietroNozella/login-java/commit/f76d857ade77cc46afbedb0db88eae51fda5ebcd).
+O histórico Git foi preservado. O remoto `upstream` identifica a origem e está
+com envio desabilitado nesta cópia. O remoto `origin` aponta para o novo repositório
+[PietroNozella/chamados-api](https://github.com/PietroNozella/chamados-api).
+
+## Execução com Docker
+
+Pré-requisitos: Docker Desktop em execução e Docker Compose disponível.
 
 ```powershell
 Copy-Item .env.example .env
-# Substitua APP_ADMIN_PASSWORD por uma senha forte antes de iniciar.
+# Edite .env e preencha APP_ADMIN_PASSWORD antes de continuar.
 docker compose up --build
 ```
 
-- Aplicação: `http://localhost:8080/login`
-- Caixa de e-mail local do Mailpit: `http://localhost:8025`
-- MongoDB: `localhost:27018`, banco padrão `login_java`
+- Aplicação: `http://localhost:8081`.
+- MongoDB no computador: `mongodb://localhost:27019/chamados_api`.
+- MongoDB dentro do Compose: `mongodb://mongo:27017/chamados_api`.
+- Banco padrão: `chamados_api`.
+- Volume próprio do projeto: `chamados-api_mongo-data`.
 
-O Dockerfile compila o projeto e gera o JAR. A primeira conta administrativa é
-criada com as variáveis `APP_ADMIN_*`; reinícios não sobrescrevem uma conta existente.
-O nome do administrador inicial fica reservado para essa conta.
+A aplicação cria a primeira conta administrativa se ela ainda não existir.
+A senha vem de `APP_ADMIN_PASSWORD`, sem padrão embutido. Não há login via API
+nesta etapa. O banco e o volume são separados dos projetos de origem.
+`docker compose down` encerra os serviços e preserva o volume.
 
-## Executar localmente
+## Execução local
 
-Pré-requisitos: Java 21 e MongoDB acessível. Build e testes são validados com Java 21.
-Para usar o MongoDB e o Mailpit do Compose com a aplicação fora do Docker:
+Pré-requisitos: JDK 21 e MongoDB disponível. É possível iniciar somente o banco
+com `docker compose up -d mongo`, após preparar `.env` conforme acima.
 
 ```powershell
-docker compose up -d mongo mailpit
-$env:MONGODB_URI="mongodb://localhost:27018/login_java"
-$env:MONGODB_DATABASE="login_java"
-$env:APP_ADMIN_PASSWORD="defina-uma-senha-forte"
-$env:SMTP_HOST="localhost"
-$env:SMTP_PORT="1025"
-$env:APP_BASE_URL="http://localhost:8080"
+$env:MONGODB_URI='mongodb://localhost:27019/chamados_api'
+$env:MONGODB_DATABASE='chamados_api'
+$env:APP_ADMIN_PASSWORD='defina-uma-senha-local'
 .\mvnw.cmd spring-boot:run
 ```
 
 O Maven Wrapper fornece o Maven. Na execução local, `.env` não é carregado
-automaticamente: use as variáveis do processo como no exemplo.
+automaticamente; use variáveis de ambiente do processo. `SERVER_PORT` altera
+a porta da aplicação local, cujo padrão é 8081.
 
-## Configuração e personalização
+## Validação
 
-| Variável | Uso | Padrão |
-| --- | --- | --- |
-| `APP_NOME` | Nome exibido nos títulos e na navegação | `Sistema de Login` |
-| `APP_TEMA_NOME` | Arquivo de tema visual | `padrao` |
-| `APP_BASE_URL` | Endereço público usado nos links de recuperação | `http://localhost:8080` |
-| `MONGODB_URI` | Conexão do MongoDB | `mongodb://localhost:27017/login_java` |
-| `MONGODB_DATABASE` | Nome do banco | `login_java` |
-| `APP_ADMIN_USERNAME` | Usuário do administrador inicial | `admin` |
-| `APP_ADMIN_PASSWORD` | Senha do administrador inicial | Obrigatória |
-| `APP_ADMIN_EMAIL` | E-mail do administrador inicial | `admin@local` |
-| `APP_ADMIN_NOME` | Nome do administrador inicial | `Administrador` |
-| `SESSION_TIMEOUT` | Tempo de inatividade da sessão | `30m` |
-
-Para um novo tema, copie `static/css/tema-padrao.css` para `tema-<nome>.css`,
-altere as variáveis CSS e configure `APP_TEMA_NOME=<nome>`. O tema padrão é
-carregado primeiro e o novo arquivo sobrescreve suas variáveis.
-
-O banco contém `usuarios`, `password_reset_tokens`, `auditoria` e `sessions`.
-A aplicação não migra nem exclui bancos ou volumes de versões anteriores.
-
-Para MongoDB Atlas, configure `MONGODB_URI` com a URI do cluster e
-`MONGODB_DATABASE` com o banco escolhido. Autorize a conexão no cluster e
-codifique caracteres especiais das credenciais na URI. Não versione senhas.
-
-## E-mail de recuperação
-
-O Compose inclui Mailpit para testes locais. Para usar um servidor SMTP:
-
-```env
-SMTP_HOST=smtp.exemplo.com
-SMTP_PORT=587
-SMTP_USERNAME=usuario
-SMTP_PASSWORD=senha
-SMTP_AUTH=true
-SMTP_STARTTLS=true
-SMTP_FROM=no-reply@exemplo.com
-APP_BASE_URL=https://sistema.exemplo.com
+```powershell
+.\mvnw.cmd clean verify
+docker compose config --quiet
 ```
 
-A resposta de recuperação é a mesma para e-mails existentes e inexistentes.
-O token original aparece apenas no link enviado por e-mail; o banco guarda seu hash.
+Os testes de serviços usam repositórios simulados e as validações exercitam
+Bean Validation. Dois testes com MockMvc verificam o bloqueio da API e a ausência
+de formulário de login. A suíte não precisa de MongoDB e não comprova persistência
+real nem chamadas pela rede. O JAR é gerado em
+`target/chamados-api-1.0.0.jar`.
 
 ## Estrutura
 
-O código está em `src/main/java/com/example/login`: configurações na raiz e
-subpacotes `controller`, `dto`, `entity`, `repository`, `security` e `service`.
-Templates e arquivos estáticos ficam em `src/main/resources`. A pasta `estudo`
-explica os fluxos e as decisões técnicas.
+O código fica em `src/main/java/com/example/chamados`:
 
-## Testes e build
+- Raiz: inicialização, segurança, BCrypt e conta administrativa inicial.
+- `dto`: validações de entrada reaproveitadas.
+- `entity`: documentos do MongoDB.
+- `repository`: acesso ao banco.
+- `service`: regras de usuários e componentes de autenticação reaproveitados.
 
-```powershell
-.\mvnw.cmd test
-.\mvnw.cmd clean package
+Os controllers REST serão acrescentados nas respectivas features. A configuração
+fica em `src/main/resources/application.properties` e os testes em `src/test/java`.
+
+## Branches e próximas entregas
+
+Cada entrega usa uma branch própria. Após revisão e merge do PR, a próxima
+branch parte da `main` atualizada. Não é necessário manter branches vazias.
+
+| Branch | Entrega | Situação |
+| --- | --- | --- |
+| `chore/estrutura-inicial` | Base backend, ambiente e instruções | Etapa atual |
+| `feat/autenticacao` | Acesso pela API e permissões de usuário e técnico | Pendente |
+| `feat/abertura-chamados` | Título, descrição, solicitante, abertura e status automáticos | Pendente |
+| `feat/consulta-chamados` | Listagem por usuário e consulta individual | Pendente |
+| `feat/resolucao-chamados` | Solução, data e bloqueio de alterações após resolução | Pendente |
+| `docs/demonstracao-api` | Coleção de requisições e roteiro do vídeo | Pendente |
+
+Endpoints exigidos, ainda pendentes:
+
+```text
+POST /api/chamados
+GET  /api/chamados/usuario/{id}
+GET  /api/chamados/{id}
+PUT  /api/chamados/{id}/resolver
 ```
 
-O JAR gerado é `target/login-java-1.0.0.jar`. A suíte cobre validação, cadastro
-público sem privilégios, duplicidade, hash de senha, bloqueio e tokens de recuperação.
-Para verificar o fluxo real, inicie MongoDB/Mailpit e percorra cadastro, login,
-aceite, troca de senha e logout; confira a recuperação na caixa de e-mail local.
+A demonstração final deve incluir autenticação, persistência no MongoDB e rejeição
+de alterações em chamados resolvidos, em uma gravação de tela de até cinco minutos.
